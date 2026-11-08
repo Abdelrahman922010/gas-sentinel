@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GasSentinel // Honeywell-Grade Industrial SCADA &amp; Volumetric AI Console</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <!-- ==================== TOP COMMAND DECK ==================== -->
+  <header class="command-deck" id="command-deck">
+    <div class="brand-cluster">
+      <div class="core-orb-wrap">
+        <span class="core-orb" id="overall-dot"></span>
+        <span class="core-ring"></span>
+      </div>
+      <div>
+        <div class="title-row">
+          <h1>GASSENTINEL <span class="accent">FORGE HMI</span></h1>
+          <span id="link-badge" class="status-pill pill-ok">CLOUD AI READY</span>
+          <span id="overall-badge" class="status-pill pill-nominal">STATE: NOMINAL</span>
+        </div>
+        <p class="subtitle">
+          STM32F103C8T6 Edge Controller · ESP-01 TLS WebSocket · 360° Ultrasonic Volumetric AI
+          <span class="dot-sep">•</span>
+          Inference: <strong id="ai-latency">0.42 ms</strong>
+          <span class="dot-sep">•</span>
+          ML Error Reduction: <strong id="ml-gain" class="txt-emerald">92.8%</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="deck-actions">
+      <div class="seg-group" role="group" aria-label="Scenario Mode">
+        <button type="button" class="seg-btn" data-mode="off">Live MCU</button>
+        <button type="button" class="seg-btn active" data-mode="nominal">Nominal</button>
+        <button type="button" class="seg-btn" data-mode="gradual_co2">Gradual Leak</button>
+        <button type="button" class="seg-btn" data-mode="spike_gas">Sudden Spike</button>
+        <button type="button" class="seg-btn" data-mode="thermal_fire">Fire Hazard</button>
+      </div>
+      <!-- Hidden select kept for backward compatibility -->
+      <select id="sim-select" class="sr-only" aria-hidden="true">
+        <option value="off">Live MCU</option>
+        <option value="nominal" selected>Nominal</option>
+        <option value="gradual_co2">Gradual Leak</option>
+        <option value="spike_gas">Sudden Spike</option>
+        <option value="thermal_fire">Fire Hazard</option>
+      </select>
+
+      <div class="action-btns">
+        <button class="action-btn" id="btn-scan" type="button" title="Trigger 360° ultrasonic room scan">
+          <span class="btn-dot cyan"></span>360° Scan
+        </button>
+        <button class="action-btn" id="btn-cal" type="button" title="Calibrate clean-air R0 into STM32 EEPROM">
+          <span class="btn-dot emerald"></span>Calibrate R₀
+        </button>
+        <button class="action-btn" id="btn-export" type="button" title="Download live telemetry history as CSV for capstone report">
+          <span class="btn-dot violet"></span>Export CSV
+        </button>
+        <button class="action-btn btn-mute" id="btn-mute" type="button" title="Silence STM32 buzzer on PA6 for 120s">
+          Mute PA6
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="scada-grid">
+    <!-- ==================== ROW 1: 3 RADIAL GAUGE CHANNEL CARDS ==================== -->
+    <!-- CHANNEL 1: GAS CONCENTRATION -->
+    <section class="panel channel-panel" id="card-gas">
+      <div class="panel-header">
+        <div>
+          <span class="panel-kicker">CH 01 // MQ-135 SnO₂ · ADC PA0</span>
+          <h2>Carbon Dioxide &amp; Methane</h2>
+        </div>
+        <div class="hw-led" id="led-gas" title="Mirrors physical Gas LED on STM32 pin PB10">
+          <span class="led-lens"></span>
+          <span id="led-gas-text">PB10 · OK</span>
+        </div>
+      </div>
+
+      <div class="gauge-layout">
+        <div class="arc-gauge">
+          <svg viewBox="0 0 160 115" class="gauge-svg">
+            <defs>
+              <linearGradient id="grad-gas" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#10b981" />
+                <stop offset="50%" stop-color="#22d3ee" />
+                <stop offset="80%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#ef4444" />
+              </linearGradient>
+            </defs>
+            <path d="M 20 98 A 62 62 0 1 1 140 98" class="gauge-track" />
+            <path d="M 20 98 A 62 62 0 1 1 140 98" class="gauge-fill" id="arc-co2" stroke="url(#grad-gas)" />
+          </svg>
+          <div class="gauge-center">
+            <span class="gauge-label">AI COMPENSATED</span>
+            <div class="gauge-num"><span id="val-co2">432</span><small>ppm</small></div>
+            <span class="gauge-sub">Raw: <b id="val-co2-raw">484</b> ppm</span>
+          </div>
+        </div>
+
+        <div class="side-kpis">
+          <div class="mini-kpi">
+            <span>CH₄ / COMBUSTIBLE EQ</span>
+            <strong><b id="val-ch4">2</b> <small>ppm</small></strong>
+          </div>
+          <div class="mini-kpi">
+            <span>NORM. RATIO (R<sub>s</sub>/R<sub>0</sub>)</span>
+            <strong id="val-r135">0.62</strong>
+          </div>
+          <div class="mini-kpi">
+            <span>T/H COMPENSATION</span>
+            <strong id="val-th-factor" class="txt-cyan">×0.964</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="telemetry-strip">
+        <div class="strip-cell">
+          <span>EXACT RATE (dC/dt)</span>
+          <strong id="rate-co2">+0.0 ppm/m</strong>
+        </div>
+        <div class="strip-cell">
+          <span>OLS FIT (R²)</span>
+          <strong id="r2-co2">0.08</strong>
+        </div>
+        <div class="strip-cell">
+          <span>5-MIN FORECAST</span>
+          <strong id="proj-co2">432 ppm</strong>
+        </div>
+        <div class="strip-cell">
+          <span>SPIKE Z-SCORE</span>
+          <strong id="z-co2">0.35</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHANNEL 2: TEMPERATURE -->
+    <section class="panel channel-panel" id="card-temp">
+      <div class="panel-header">
+        <div>
+          <span class="panel-kicker">CH 02 // DHT-22 DIGITAL · PIN PB8</span>
+          <h2>Ambient Temperature</h2>
+        </div>
+        <div class="hw-led" id="led-temp" title="Mirrors physical Temperature LED on STM32 pin PB0">
+          <span class="led-lens"></span>
+          <span id="led-temp-text">PB0 · OK</span>
+        </div>
+      </div>
+
+      <div class="gauge-layout">
+        <div class="arc-gauge">
+          <svg viewBox="0 0 160 115" class="gauge-svg">
+            <defs>
+              <linearGradient id="grad-temp" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#38bdf8" />
+                <stop offset="55%" stop-color="#10b981" />
+                <stop offset="80%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#ef4444" />
+              </linearGradient>
+            </defs>
+            <path d="M 20 98 A 62 62 0 1 1 140 98" class="gauge-track" />
+            <path d="M 20 98 A 62 62 0 1 1 140 98" class="gauge-fill" id="arc-temp" stroke="url(#grad-temp)" />
+          </svg>
+          <div class="gauge-center">
+            <span class="gauge-label">THERMAL SENSOR</span>
+            <div class="gauge-num"><span id="val-temp">24.2</span><small>°C</small></div>
+            <span class="gauge-sub">Safe: 12–32 °C</span>
+          </div>
+        </div>
+
+        <div class="side-kpis">
+          <div class="mini-kpi">
+            <span>WARN / CRIT HIGH</span>
+            <strong>32.0 / 40.0 <small>°C</small></strong>
+          </div>
+          <div class="mini-kpi">
+            <span>SPEED OF SOUND</span>
+            <strong id="val-sound">345.9 <small>m/s</small></strong>
+          </div>
+          <div class="mini-kpi">
+            <span>SENSOR BUS</span>
+            <strong class="txt-emerald">DHT-22 OK</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="telemetry-strip">
+        <div class="strip-cell">
+          <span>EXACT RATE (dT/dt)</span>
+          <strong id="rate-temp">+0.00 °C/m</strong>
+        </div>
+        <div class="strip-cell">
+          <span>OLS FIT (R²)</span>
+          <strong id="r2-temp">0.05</strong>
+        </div>
+        <div class="strip-cell">
+          <span>5-MIN FORECAST</span>
+          <strong id="proj-temp">24.2 °C</strong>
+        </div>
+        <div class="strip-cell">
+          <span>SPIKE Z-SCORE</span>
+          <strong id="z-temp">0.20</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHANNEL 3: HUMIDITY -->
+    <section class="panel channel-panel" id="card-hum">
+      <div class="panel-header">
+        <div>
+          <span class="panel-kicker">CH 03 // DHT-22 HYGROMETER · PIN PB8</span>
+          <h2>Relative Humidity</h2>
+        </div>
+        <div class="hw-led" id="led-hum" title="Mirrors physical Humidity LED on STM32 pin PB1">
+          <span class="led-lens"></span>
+          <span id="led-hum-text">PB1 · OK</span>
+        </div>
+      </div>
+
+      <div class="gauge-layout">
+        <div class="arc-gauge">
+          <svg viewBox="0 0 160 115" class="gauge-svg">
+            <defs>
+              <linearGradient id="grad-hum" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#f59e0b" />
+                <stop offset="45%" stop-color="#10b981" />
+                <stop offset="80%" stop-color="#22d3ee" />
+                <stop offset="100%" stop-color="#ef4444" />
+              </linearGradient>
+            </defs>
+            <path d="M 20 98 A 62 62 0 1 1 140 98" class="gauge-track" />
+            <path d="M 20 98 A 62 62 0 1 1 140 98" class="gauge-fill" id="arc-hum" stroke="url(#grad-hum)" />
+          </svg>
+          <div class="gauge-center">
+            <span class="gauge-label">WATER VAPOR</span>
+            <div class="gauge-num"><span id="val-hum">48.0</span><small>%RH</small></div>
+            <span class="gauge-sub">Safe: 25–70 %</span>
+          </div>
+        </div>
+
+        <div class="side-kpis">
+          <div class="mini-kpi">
+            <span>ESD / CONDENSATION</span>
+            <strong>25% / 85% <small>RH</small></strong>
+          </div>
+          <div class="mini-kpi">
+            <span>DEW POINT EST.</span>
+            <strong id="val-dew">12.5 <small>°C</small></strong>
+          </div>
+          <div class="mini-kpi">
+            <span>DRIFT COMP.</span>
+            <strong class="txt-cyan">ACTIVE</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="telemetry-strip">
+        <div class="strip-cell">
+          <span>EXACT RATE (dRH/dt)</span>
+          <strong id="rate-hum">+0.00 %/m</strong>
+        </div>
+        <div class="strip-cell">
+          <span>OLS FIT (R²)</span>
+          <strong id="r2-hum">0.04</strong>
+        </div>
+        <div class="strip-cell">
+          <span>5-MIN FORECAST</span>
+          <strong id="proj-hum">48.0 %</strong>
+        </div>
+        <div class="strip-cell">
+          <span>SPIKE Z-SCORE</span>
+          <strong id="z-hum">0.25</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== ROW 2: 360 SONAR RADAR + OSCILLOSCOPE ==================== -->
+    <section class="panel radar-panel">
+      <div class="panel-header">
+        <div>
+          <span class="panel-kicker">VOLUMETRIC SONAR // SERVO PA8 + 2× HC-SR04</span>
+          <h2>360° Room Cross-Section &amp; Ideal-Gas Mass Balance</h2>
+        </div>
+        <span class="status-pill pill-cyan" id="scan-badge">36 ANGLES · 100% VALID</span>
+      </div>
+
+      <div class="radar-body">
+        <div class="sonar-stage">
+          <canvas id="radar-canvas" width="310" height="310"></canvas>
+          <div class="sonar-overlay-tag">SHOELACE POLYGON</div>
+        </div>
+
+        <div class="vol-grid">
+          <div class="vol-card">
+            <span class="vol-label">CROSS-SECTION AREA (A)</span>
+            <strong class="vol-value" id="geom-area">15.12 m²</strong>
+            <small>36-step polar integration</small>
+          </div>
+          <div class="vol-card">
+            <span class="vol-label">CEILING HEIGHT (H)</span>
+            <strong class="vol-value" id="geom-height">2.75 m</strong>
+            <small>Upward HC-SR04 (PB14/15)</small>
+          </div>
+          <div class="vol-card vol-featured">
+            <span class="vol-label">TOTAL ROOM VOLUME (V = A × H)</span>
+            <strong class="vol-value" id="geom-volume">41.58 m³</strong>
+            <small>Mixing factor: <b id="val-vol-factor">1.008</b></small>
+          </div>
+          <div class="vol-card">
+            <span class="vol-label">EXCESS CO₂ MASS &amp; LEAK</span>
+            <strong class="vol-value" id="mass-co2">0.9 g (+0.00 g/min)</strong>
+            <small>PV = nRT mass integration</small>
+          </div>
+          <div class="vol-card">
+            <span class="vol-label">REQUIRED PURGE AIRFLOW</span>
+            <strong class="vol-value txt-cyan" id="vent-req">83.2 m³/h (2.0 ACH)</strong>
+            <small>Target exhaust fan rate</small>
+          </div>
+          <div class="vol-card">
+            <span class="vol-label">TIME TO CRITICAL LIMIT</span>
+            <strong class="vol-value" id="time-to-crit">∞ (Stable)</strong>
+            <small>Projected from live slope</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="panel-header">
+        <div>
+          <span class="panel-kicker">MULTI-CHANNEL TELEMETRY OSCILLOSCOPE</span>
+          <h2>AI-Compensated vs. Raw CO₂ (ppm), Temperature (°C) &amp; Humidity (%RH)</h2>
+        </div>
+        <div class="chart-legend">
+          <span><i class="dot sw-co2"></i>AI CO₂ (ppm)</span>
+          <span><i class="dot sw-raw"></i>Raw CO₂ (ppm)</span>
+          <span><i class="dot sw-temp"></i>Temp (°C)</span>
+          <span><i class="dot sw-hum"></i>Humidity (%)</span>
+        </div>
+      </div>
+      <div class="oscilloscope-stage">
+        <canvas id="trend-canvas" width="780" height="310"></canvas>
+      </div>
+    </section>
+
+    <!-- ==================== ROW 3: CONTAINMENT PLAYBOOK + AUDIT LOG ==================== -->
+    <section class="panel playbook-panel">
+      <div class="panel-header">
+        <div>
+          <span class="panel-kicker">AUTONOMOUS SAFETY ADVISOR // CONTAINMENT &amp; EVACUATION</span>
+          <h2 id="decision-headline">Air quality, climate, and rates of change are nominal.</h2>
+        </div>
+        <div class="buzzer-badge" id="buzzer-pill">BUZZER (PA6): SILENT</div>
+      </div>
+      <div id="advisory-list" class="playbook-list"></div>
+    </section>
+
+    <section class="panel audit-panel">
+      <div class="panel-header">
+        <div>
+          <span class="panel-kicker">EVENT TELEMETRY</span>
+          <h2>Real-Time Actuation &amp; Anomaly Log</h2>
+        </div>
+      </div>
+      <ul id="event-log" class="audit-list"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

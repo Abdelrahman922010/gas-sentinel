@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: gas-sentinel
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python train_model.py --out models/gas_sentinel_ai.joblib
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --ws-ping-interval 15 --ws-ping-timeout 20
